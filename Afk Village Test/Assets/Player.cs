@@ -14,6 +14,15 @@ public class Player : MonoBehaviour
     public bool isGrounded;
     public LayerMask whatIsGround;
     public Animator anim;
+    private bool facingRight = true;
+    private int facingDirection = 1;
+    public float wallCheckDistance;
+    private bool isWallDetected;
+    private bool canWallSlide;
+    private bool isWallSliding;
+
+
+
 
     private void Awake()
     {
@@ -32,23 +41,53 @@ public class Player : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        bool isMoving = rb.velocity.x != 0;
-        anim.SetBool("isMoved", isMoving);
+        AnimationControllers();
+        FlipController();
+
 
         CollisionCheck();
+
+        InputChecks();
+
+
+        if (isGrounded)
+        {
+            canDoubleJump = true;
+        }
+        if (canWallSlide)
+        {
+            isWallSliding = true;
+            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.1f);
+        }
+
+        Move();
+    }
+    private void AnimationControllers()
+    {
+        bool isMoving = rb.velocity.x != 0;
+        anim.SetBool("isMoved", isMoving);
+        anim.SetBool("isGrounded", isGrounded);
+        anim.SetFloat("yVelocity", rb.velocity.y);
+    }
+
+    private void InputChecks()
+    {
         Debug.Log("Update was called");
 
         movingInput = Input.GetAxisRaw("Horizontal");
+
+
+
+        if (Input.GetAxis("Vertical") < 0)
+        {
+            canWallSlide = false;
+        }
+
 
         if (Input.GetKeyDown(KeyCode.Space))
         {
             JumpButton();
         }
-        if (isGrounded)
-        {
-            canDoubleJump = true;
-        }
-        Move();
     }
     public void JumpButton()
     {
@@ -70,12 +109,40 @@ public class Player : MonoBehaviour
     {
         rb.velocity = new Vector2(rb.velocity.x, jumpForce);
     }
+    private void FlipController()
+    {
+        if (facingRight && movingInput < 0)
+        {
+            Flip();
+        }
+        else if (!facingRight && movingInput > 0)
+        {
+            Flip();
+        }
+    }
+    private void Flip()
+    {
+        facingDirection = facingDirection * -1;
+        facingRight = !facingRight;
+        transform.Rotate(0, 180, 0);
+    }
     public void CollisionCheck()
     {
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistance, whatIsGround);
+        isWallDetected = Physics2D.Raycast(transform.position, Vector2.right * facingDirection, wallCheckDistance, whatIsGround);
+
+        if (isWallDetected && rb.velocity.y < 0)
+        {
+            canWallSlide = true;
+        }
+        if (!isWallDetected)
+        {
+            canWallSlide = false;
+        }
     }
     private void OnDrawGizmos()
     {
         Gizmos.DrawLine(transform.position, new Vector3(transform.position.x, transform.position.y - groundCheckDistance));
+        Gizmos.DrawLine(transform.position, new Vector3(transform.position.x + wallCheckDistance * facingDirection, transform.position.y));
     }
 }
